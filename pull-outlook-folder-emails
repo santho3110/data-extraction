@@ -41,6 +41,7 @@ Sub PullOutlookEmails()
     i = 2
     
     ' Loop through each Mail item in the Personal Finance folder
+    Dim MailItem As Object
     For Each MailItem In TargetFolder.Items
     
         ' Write Mail information to Excel
@@ -48,11 +49,11 @@ Sub PullOutlookEmails()
         ws.Cells(i, 2).Value = MailItem.ReceivedTime
         ws.Cells(i, 3).Value = MailItem.SenderName
         ws.Cells(i, 4).Value = MailItem.SenderEmailAddress
-        ws.Cells(i, 5).Value = MailItem.To
+        ws.Cells(i, 5).Value = GetToAddresses(MailItem)
         If Not MailItem.Recipients(1) Is Nothing Then
             ws.Cells(i, 6).Value = MailItem.Recipients(1).Name
         End If
-        ws.Cells(i, 7).Value = MailItem.CC
+        ws.Cells(i, 7).Value = GetCCAddresses(MailItem)
         
         Dim j As Integer
         Dim ccNames As String
@@ -72,4 +73,34 @@ Sub PullOutlookEmails()
     Next MailItem
 
 End Sub
+
+Function GetToAddresses(ByRef Mail As Object) As String
+    Dim Recipients As Object
+    Set Recipients = Mail.Recipients
+    Dim ToAddresses As String
+    Dim i As Integer
+
+    For i = 1 To Recipients.Count
+        If Recipients(i).Type = 1 Then ' 1 denotes "To"
+            ToAddresses = ToAddresses & Recipients(i).Address & "; "
+        End If
+    Next i
+
+    GetToAddresses = ToAddresses
+End Function
+
+Function GetCCAddresses(ByRef Mail As Object) As String
+    Dim Recipients As Object
+    Set Recipients = Mail.Recipients
+    Dim CCAddresses As String
+    Dim i As Integer
+
+    For i = 1 To Recipients.Count
+        If Recipients(i).Type = 2 Then ' 2 denotes "CC"
+            CCAddresses = CCAddresses & Recipients(i).Address & "; "
+        End If
+    Next i
+
+    GetCCAddresses = CCAddresses
+End Function
 
