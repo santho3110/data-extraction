@@ -3,26 +3,26 @@ Sub PullOutlookEmails()
     ' Define Outlook and Namespace Object
     Dim OutlookApp As Object
     Set OutlookApp = CreateObject("Outlook.Application")
-    
+
     Dim OutlookNamespace As Object
     Set OutlookNamespace = OutlookApp.GetNamespace("MAPI")
-    
+
     ' Get the main folders
     Dim Folders As Object
     Set Folders = OutlookNamespace.Folders
-    
+
     ' Assuming the email account you want is the first one (you can modify this if needed)
     Dim MainAccount As Object
     Set MainAccount = Folders.Item(1) ' Adjust the index if needed
-    
+
     ' Define the target Folder (Personal Finance)
     Dim TargetFolder As Object
     Set TargetFolder = MainAccount.Folders("Personal Finance")
-    
+
     ' Define an Excel Worksheet
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Sheet1") ' Change Sheet name as needed
-    
+
     ' Set header names for the Excel sheet
     ws.Cells(1, 1).Value = "Subject"
     ws.Cells(1, 2).Value = "Received Time"
@@ -35,26 +35,26 @@ Sub PullOutlookEmails()
     ws.Cells(1, 9).Value = "Email Body"
     ws.Cells(1, 10).Value = "Importance"
     ws.Cells(1, 11).Value = "Sensitivity"
-    
+
     ' The Row in the Excel file where we will start writing data (after the headers)
     Dim i As Integer
     i = 2
-    
+
     ' Loop through each Mail item in the Personal Finance folder
     Dim MailItem As Object
     For Each MailItem In TargetFolder.Items
-    
+
         ' Write Mail information to Excel
         ws.Cells(i, 1).Value = MailItem.Subject
         ws.Cells(i, 2).Value = MailItem.ReceivedTime
         ws.Cells(i, 3).Value = MailItem.SenderName
-        ws.Cells(i, 4).Value = MailItem.SenderEmailAddress
+        ws.Cells(i, 4).Value = GetSMTPAddress(MailItem.Sender)
         ws.Cells(i, 5).Value = GetToAddresses(MailItem)
         If Not MailItem.Recipients(1) Is Nothing Then
             ws.Cells(i, 6).Value = MailItem.Recipients(1).Name
         End If
         ws.Cells(i, 7).Value = GetCCAddresses(MailItem)
-        
+
         Dim j As Integer
         Dim ccNames As String
         For j = 2 To MailItem.Recipients.Count
@@ -64,15 +64,27 @@ Sub PullOutlookEmails()
         Next j
         ws.Cells(i, 8).Value = ccNames
         ws.Cells(i, 9).Value = MailItem.Body
-
-        ' Extract Importance and Sensitivity
         ws.Cells(i, 10).Value = MailItem.Importance
         ws.Cells(i, 11).Value = MailItem.Sensitivity
-        
+
         i = i + 1
     Next MailItem
 
 End Sub
+
+Function GetSMTPAddress(AddressEntry As Object) As String
+    On Error Resume Next ' Skip any errors (some AddressEntries might not have an ExchangeUser)
+    If AddressEntry.Type = "EX" Then
+        GetSMTPAddress = AddressEntry.GetExchangeUser.PrimarySmtpAddress
+        If Err.Number <> 0 Then
+            GetSMTPAddress = AddressEntry.Address
+            Err.Clear
+        End If
+    Else
+        GetSMTPAddress = AddressEntry.Address
+    End If
+    On Error GoTo 0
+End Function
 
 Function GetToAddresses(ByRef Mail As Object) As String
     Dim Recipients As Object
@@ -82,7 +94,7 @@ Function GetToAddresses(ByRef Mail As Object) As String
 
     For i = 1 To Recipients.Count
         If Recipients(i).Type = 1 Then ' 1 denotes "To"
-            ToAddresses = ToAddresses & Recipients(i).Address & "; "
+            ToAddresses = ToAddresses & GetSMTPAddress(Recipients(i).AddressEntry) & "; "
         End If
     Next i
 
@@ -97,7 +109,7 @@ Function GetCCAddresses(ByRef Mail As Object) As String
 
     For i = 1 To Recipients.Count
         If Recipients(i).Type = 2 Then ' 2 denotes "CC"
-            CCAddresses = CCAddresses & Recipients(i).Address & "; "
+            CCAddresses = CCAddresses & GetSMTPAddress(Recipients(i).AddressEntry) & "; "
         End If
     Next i
 
