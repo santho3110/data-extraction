@@ -48,7 +48,7 @@ Sub PullOutlookEmails()
         ws.Cells(i, 1).Value = MailItem.Subject
         ws.Cells(i, 2).Value = MailItem.ReceivedTime
         ws.Cells(i, 3).Value = MailItem.SenderName
-        ws.Cells(i, 4).Value = GetSMTPAddress(MailItem.Sender)
+        ws.Cells(i, 4).Value = GetSMTPAddress(MailItem)
         ws.Cells(i, 5).Value = GetToAddresses(MailItem)
         If Not MailItem.Recipients(1) Is Nothing Then
             ws.Cells(i, 6).Value = MailItem.Recipients(1).Name
@@ -72,15 +72,21 @@ Sub PullOutlookEmails()
 
 End Sub
 
-Function GetSMTPAddress(AddressEntry As Object) As String
+Function GetSMTPAddress(Mail As Object) As String
     Dim SMTPAddress As String
+    Dim AddressEntry As Object
+
     On Error Resume Next
-    If AddressEntry.Type = "EX" And Not AddressEntry.GetExchangeUser Is Nothing Then
-        SMTPAddress = AddressEntry.GetExchangeUser.PrimarySmtpAddress
+    If Not Mail.Sender Is Nothing Then
+        Set AddressEntry = Mail.Sender
+        If AddressEntry.Type = "EX" And Not AddressEntry.GetExchangeUser Is Nothing Then
+            SMTPAddress = AddressEntry.GetExchangeUser.PrimarySmtpAddress
+        End If
+        If SMTPAddress = "" Or Err.Number <> 0 Then
+            SMTPAddress = AddressEntry.Address
+        End If
     End If
-    If SMTPAddress = "" Or Err.Number <> 0 Then
-        SMTPAddress = AddressEntry.Address
-    End If
+
     GetSMTPAddress = SMTPAddress
     On Error GoTo 0
 End Function
@@ -93,7 +99,7 @@ Function GetToAddresses(ByRef Mail As Object) As String
 
     For i = 1 To Recipients.Count
         If Recipients(i).Type = 1 Then ' 1 denotes "To"
-            ToAddresses = ToAddresses & GetSMTPAddress(Recipients(i).AddressEntry) & "; "
+            ToAddresses = ToAddresses & GetSMTPAddressForRecipient(Recipients(i)) & "; "
         End If
     Next i
 
@@ -108,9 +114,26 @@ Function GetCCAddresses(ByRef Mail As Object) As String
 
     For i = 1 To Recipients.Count
         If Recipients(i).Type = 2 Then ' 2 denotes "CC"
-            CCAddresses = CCAddresses & GetSMTPAddress(Recipients(i).AddressEntry) & "; "
+            CCAddresses = CCAddresses & GetSMTPAddressForRecipient(Recipients(i)) & "; "
         End If
     Next i
 
     GetCCAddresses = CCAddresses
+End Function
+
+Function GetSMTPAddressForRecipient(Recipient As Object) As String
+    Dim SMTPAddress As String
+    Dim AddressEntry As Object
+
+    On Error Resume Next
+    Set AddressEntry = Recipient.AddressEntry
+    If AddressEntry.Type = "EX" And Not AddressEntry.GetExchangeUser Is Nothing Then
+        SMTPAddress = AddressEntry.GetExchangeUser.PrimarySmtpAddress
+    End If
+    If SMTPAddress = "" Or Err.Number <> 0 Then
+        SMTPAddress = AddressEntry.Address
+    End If
+
+    GetSMTPAddressForRecipient = SMTPAddress
+    On Error GoTo 0
 End Function
