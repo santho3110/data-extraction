@@ -73,16 +73,15 @@ Sub PullOutlookEmails()
 End Sub
 
 Function GetSMTPAddress(AddressEntry As Object) As String
-    On Error Resume Next ' Skip any errors (some AddressEntries might not have an ExchangeUser)
-    If AddressEntry.Type = "EX" Then
-        GetSMTPAddress = AddressEntry.GetExchangeUser.PrimarySmtpAddress
-        If Err.Number <> 0 Then
-            GetSMTPAddress = AddressEntry.Address
-            Err.Clear
-        End If
-    Else
-        GetSMTPAddress = AddressEntry.Address
+    Dim SMTPAddress As String
+    On Error Resume Next
+    If AddressEntry.Type = "EX" And Not AddressEntry.GetExchangeUser Is Nothing Then
+        SMTPAddress = AddressEntry.GetExchangeUser.PrimarySmtpAddress
     End If
+    If SMTPAddress = "" Or Err.Number <> 0 Then
+        SMTPAddress = AddressEntry.Address
+    End If
+    GetSMTPAddress = SMTPAddress
     On Error GoTo 0
 End Function
 
@@ -115,4 +114,3 @@ Function GetCCAddresses(ByRef Mail As Object) As String
 
     GetCCAddresses = CCAddresses
 End Function
-
